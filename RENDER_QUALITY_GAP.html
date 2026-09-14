@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Altitude Render Quality Gap</title>
+<style>
+  /* reset equivalent to the Artifact host wrapper, so the local file renders identically */
+  html { color-scheme: light dark; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 14px; background: #faf9f7; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  :root {
+    --ground: #e8ebec;
+    --paper: #fbfcfc;
+    --paper-2: #f2f4f5;
+    --ink: #1a2226;
+    --ink-2: #4a585e;
+    --ink-3: #74838a;
+    --rule: #cfd6d8;
+    --rule-soft: #dfe4e6;
+    --accent: #14607f;
+    --accent-soft: #d8e8ee;
+    --has: #2c6a4c;
+    --has-soft: #dbe9e0;
+    --gap: #9d3a26;
+    --gap-soft: #f0dfda;
+    --warn: #8a6212;
+    --warn-soft: #f1e7cf;
+    --shadow: 0 1px 2px rgba(26,34,38,.06), 0 8px 24px -12px rgba(26,34,38,.18);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14191c;
+      --paper: #1b2226;
+      --paper-2: #222a2e;
+      --ink: #e4e9ea;
+      --ink-2: #a8b5ba;
+      --ink-3: #7d8c92;
+      --rule: #333d42;
+      --rule-soft: #2a3237;
+      --accent: #6fb9d4;
+      --accent-soft: #1d333d;
+      --has: #6ec08f;
+      --has-soft: #1c2f25;
+      --gap: #e08a70;
+      --gap-soft: #35211b;
+      --warn: #d6b05c;
+      --warn-soft: #30281691;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14191c;
+    --paper: #1b2226;
+    --paper-2: #222a2e;
+    --ink: #e4e9ea;
+    --ink-2: #a8b5ba;
+    --ink-3: #7d8c92;
+    --rule: #333d42;
+    --rule-soft: #2a3237;
+    --accent: #6fb9d4;
+    --accent-soft: #1d333d;
+    --has: #6ec08f;
+    --has-soft: #1c2f25;
+    --gap: #e08a70;
+    --gap-soft: #35211b;
+    --warn: #d6b05c;
+    --warn-soft: #302816;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 0 96px;
+  }
+
+  .col { max-width: 68ch; }
+
+  h1, h2, h3, h4, .eyebrow, .tag, th, .mono, code, kbd {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  }
+  code, .mono, .path {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  /* ── masthead ───────────────────────────────── */
+  header.masthead {
+    border-bottom: 3px solid var(--ink);
+    padding-block: 40px 20px;
+    margin-bottom: 40px;
+  }
+  .kicker {
+    font-family: Archivo, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(30px, 5.4vw, 50px);
+    line-height: 1.04;
+    font-weight: 700;
+    letter-spacing: -.025em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: clamp(17px, 2.2vw, 20px);
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 62ch;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 24px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .meta-row b { color: var(--ink-2); font-weight: 500; }
+
+  /* ── sections ───────────────────────────────── */
+  section { margin-block: 64px; scroll-margin-top: 20px; }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+  h2 {
+    font-size: clamp(23px, 3.4vw, 31px);
+    line-height: 1.14;
+    font-weight: 700;
+    letter-spacing: -.018em;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -.008em;
+    margin: 34px 0 10px;
+  }
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0 0 8px;
+  }
+  p { margin: 0 0 15px; }
+  .col > p, .col > ul, .col > ol { max-width: 68ch; }
+  ul, ol { margin: 0 0 15px; padding-left: 1.25em; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 600; }
+  a { color: var(--accent); }
+
+  code {
+    font-size: .84em;
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: .1em .34em;
+    color: var(--ink);
+    word-break: break-word;
+  }
+  .path { font-size: .82em; color: var(--ink-2); word-break: break-all; }
+
+  /* ── verdict panel ──────────────────────────── */
+  .verdict {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    padding: 26px 28px;
+    box-shadow: var(--shadow);
+  }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  /* ── two-repo header cards ──────────────────── */
+  .repos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+    margin-block: 26px;
+  }
+  .repo {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 20px 22px;
+  }
+  .repo .tag {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    margin-bottom: 12px;
+  }
+  .repo.a .tag { background: var(--has-soft); color: var(--has); }
+  .repo.b .tag { background: var(--accent-soft); color: var(--accent); }
+  .repo h3 { margin: 0 0 4px; font-size: 17px; }
+  .repo .sub { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-3); margin: 0 0 14px; word-break: break-all; }
+  .repo dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; }
+  .repo dt { font-family: Archivo, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding-top: 3px; }
+  .repo dd { margin: 0; color: var(--ink-2); }
+
+  /* ── flow diagram ───────────────────────────── */
+  .flow {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 22px;
+    margin-block: 24px;
+    overflow-x: auto;
+  }
+  .flow-title {
+    font-family: Archivo, sans-serif;
+    font-size: 11px; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3);
+    margin: 0 0 14px;
+  }
+  .chain {
+    display: flex; align-items: stretch; gap: 0;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    min-width: 0;
+  }
+  .chain .node {
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    padding: 9px 12px;
+    white-space: nowrap;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 3px;
+  }
+  .chain .node b { font-family: Archivo, sans-serif; font-size: 12px; font-weight: 600; }
+  .chain .node span { font-size: 10.5px; color: var(--ink-3); }
+  .chain .node.hot { background: var(--has-soft); border-color: var(--has); }
+  .chain .node.cold { background: var(--gap-soft); border-color: var(--gap); }
+  .chain .arr {
+    display: flex; align-items: center; padding: 0 9px;
+    color: var(--ink-3); font-size: 14px;
+  }
+  .flow-note { margin: 13px 0 0; font-size: 13.5px; color: var(--ink-2); max-width: 74ch; }
+
+  /* ── findings ───────────────────────────────── */
+  .finding {
+    border-top: 1px solid var(--rule);
+    padding-block: 26px;
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    gap: 0 20px;
+  }
+  .finding:last-child { border-bottom: 1px solid var(--rule); }
+  .fnum {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-3);
+    padding-top: 5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .finding > .body { min-width: 0; }
+  .finding h3 { margin: 0 0 4px; font-size: 19px; letter-spacing: -.01em; }
+  .impact {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: Archivo, sans-serif;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .impact::before { content: ""; width: 22px; height: 3px; display: block; }
+  .impact.sev-1 { color: var(--gap); }
+  .impact.sev-1::before { background: var(--gap); }
+  .impact.sev-2 { color: var(--warn); }
+  .impact.sev-2::before { background: var(--warn); }
+  .impact.sev-3 { color: var(--ink-3); }
+  .impact.sev-3::before { background: var(--ink-3); }
+
+  .ab {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-block: 14px;
+  }
+  .ab > div {
+    padding: 13px 15px;
+    font-size: 14.2px;
+    line-height: 1.55;
+    border: 1px solid var(--rule-soft);
+  }
+  .ab .side-a { background: var(--has-soft); border-left: 3px solid var(--has); }
+  .ab .side-b { background: var(--gap-soft); border-left: 3px solid var(--gap); }
+  .ab h4 { margin-bottom: 6px; }
+  .ab .side-a h4 { color: var(--has); }
+  .ab .side-b h4 { color: var(--gap); }
+  .ab p { margin: 0 0 8px; }
+  .ab p:last-child { margin-bottom: 0; }
+  .ab .src {
+    display: block; margin-top: 9px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px; color: var(--ink-3); word-break: break-all;
+  }
+
+  pre {
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    border-left: 3px solid var(--rule);
+    padding: 13px 15px;
+    overflow-x: auto;
+    margin: 14px 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; }
+
+  /* ── tables ─────────────────────────────────── */
+  .table-scroll { overflow-x: auto; margin-block: 22px; border: 1px solid var(--rule); background: var(--paper); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-3); background: var(--paper-2);
+    border-bottom: 1px solid var(--rule);
+    position: sticky; top: 0;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  .pill {
+    display: inline-block;
+    font-family: Archivo, sans-serif;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .05em;
+    padding: 2px 8px; white-space: nowrap;
+  }
+  .pill.yes { background: var(--has-soft); color: var(--has); }
+  .pill.no { background: var(--gap-soft); color: var(--gap); }
+  .pill.part { background: var(--warn-soft); color: var(--warn); }
+
+  /* ── phase blocks ───────────────────────────── */
+  .phase {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    margin-block: 20px;
+    box-shadow: var(--shadow);
+  }
+  .phase-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-2);
+  }
+  .phase-head .n {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; color: var(--accent); font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase-head h3 { margin: 0; font-size: 18px; flex: 1 1 240px; }
+  .phase-head .cost {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; color: var(--ink-3);
+  }
+  .phase-body { padding: 18px 22px 20px; }
+  .phase-body > :last-child { margin-bottom: 0; }
+  .phase-body p, .phase-body li { font-size: 15px; }
+
+  .step {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding-block: 14px;
+    border-top: 1px dashed var(--rule-soft);
+  }
+  .step:first-of-type { border-top: none; padding-top: 4px; }
+  .step .what { font-family: Archivo, sans-serif; font-weight: 600; font-size: 15px; }
+  .step .where { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--accent); word-break: break-all; }
+  .step .why { font-size: 14.2px; color: var(--ink-2); margin: 2px 0 0; }
+
+  /* ── question block ─────────────────────────── */
+  .q {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--warn);
+    padding: 18px 22px;
+    margin-block: 16px;
+  }
+  .q h3 { margin: 0 0 6px; font-size: 17px; }
+  .q p { margin: 0 0 8px; font-size: 15px; color: var(--ink-2); }
+  .q p:last-child { margin-bottom: 0; }
+  .q .why-asking { font-size: 13.5px; color: var(--ink-3); font-style: italic; }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 22px;
+    border-top: 3px solid var(--ink);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    max-width: 74ch;
+  }
+
+  @media (max-width: 720px) {
+    .ab { grid-template-columns: 1fr; }
+    .finding { grid-template-columns: 1fr; gap: 0; }
+    .fnum { padding-top: 0; margin-bottom: 4px; }
+  }
+</style>
+
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Engineering assessment · Image &amp; video generation</p>
+  <h1>Why one Altitude renders better creative than the other</h1>
+  <p class="standfirst">Both codebases generate the same deliverables. Only one of them talks to the image model properly. This is what separates them, and what it takes to close the gap.</p>
+  <div class="meta-row">
+    <span><b>Repo A</b> AltitudeX-MAIN-SANDBOX · 92k LOC backend</span>
+    <span><b>Repo B</b> altitude (Altitude-backend-main + Frontend) · 60k LOC backend</span>
+    <span><b>Read</b> source only — no runtime access</span>
+  </div>
+</header>
+
+<!-- ─────────────────────────────────────────── -->
+<section id="verdict">
+  <p class="eyebrow">The short answer</p>
+  <h2>Repo B never actually asks for a good image</h2>
+  <div class="verdict col">
+    <p>Repo A owns its image pipeline end to end: it runs a reasoning model to author a <em>scene</em>, layers roughly thirty brand/product/audience directives on top, attaches reference photos <em>grouped by role with per-group instructions</em>, and renders on <strong>Nano Banana Pro</strong> at 2K–4K.</p>
+    <p>Repo B is a thin orchestration layer in front of an external <code>content-agents</code> service. It takes whatever spec that service returns, flattens ~20 fields into a <code>"key: value. key: value."</code> string — resolution labels and internal variant names included — attaches an undifferentiated list of product photo URLs, and renders on <strong>Imagen 4</strong> at default resolution.</p>
+    <p>The quality difference is not a model licence or a budget. It is that repo A's prompt is a brief and repo B's prompt is a database row.</p>
+  </div>
+
+  <div class="repos">
+    <div class="repo a">
+      <span class="tag">Repo A — better output</span>
+      <h3>AltitudeX-MAIN-SANDBOX</h3>
+      <p class="sub">NestJS monolith + worker · Next.js · Prisma</p>
+      <dl>
+        <dt>Image</dt><dd><code>gemini-3-pro-image</code> (Nano Banana Pro)</dd>
+        <dt>Video</dt><dd><code>veo-3.1-generate-preview</code> (quality tier)</dd>
+        <dt>Calls</dt><dd>Google GenAI SDK, in-process</dd>
+        <dt>Prompt</dt><dd>LLM-authored JSON + ~30 layered directives</dd>
+      </dl>
+    </div>
+    <div class="repo b">
+      <span class="tag">Repo B — better flow</span>
+      <h3>altitude</h3>
+      <p class="sub">7 NestJS microservices · Vite/React · TypeORM</p>
+      <dl>
+        <dt>Image</dt><dd><code>imagen-4.0-generate-001</code> via content-agents</dd>
+        <dt>Video</dt><dd><code>veo-3.1</code> at <code>render_tier: 'lite'</code></dd>
+        <dt>Calls</dt><dd>HTTP → external <code>content-agents</code></dd>
+        <dt>Prompt</dt><dd>spec fields joined with <code>". "</code></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────── -->
+<section id="flows">
+  <p class="eyebrow">Pipelines side by side</p>
+  <h2>Where the creative intelligence lives</h2>
+  <p class="col">The single most consequential structural fact: in repo A every stage that shapes the image is code you own. In repo B, two of the three stages that matter happen inside a service that is not in this repository.</p>
+
+  <div class="flow">
+    <p class="flow-title">Repo A · campaign → asset</p>
+    <div class="chain">
+      <div class="node"><b>Master brief</b><span>gemini-3.1-pro</span></div>
+      <div class="arr">→</div>
+      <div class="node"><b>Content briefs</b><span>per content type</span></div>
+      <div class="arr">→</div>
+      <div class="node hot"><b>Execution JSON</b><span>scene + negative + brand</span></div>
+      <div class="arr">→</div>
+      <div class="node hot"><b>Master creative</b><span>campaign hero image</span></div>
+      <div class="arr">→</div>
+      <div class="node hot"><b>Render</b><span>Nano Banana Pro 2K/4K</span></div>
+      <div class="arr">→</div>
+      <div class="node"><b>Compositor</b><span>DISPLAY_AD only</span></div>
+    </div>
+    <p class="flow-note">Green stages are the quality layer. All three are in <span class="path">backend/worker/handlers/</span> and <span class="path">backend/src/common/</span> — fully under your control, fully unit-tested.</p>
+  </div>
+
+  <div class="flow">
+    <p class="flow-title">Repo B · campaign → asset</p>
+    <div class="chain">
+      <div class="node"><b>Brief</b><span>brief-service</span></div>
+      <div class="arr">→</div>
+      <div class="node cold"><b>/generate</b><span>content-agents · external</span></div>
+      <div class="arr">→</div>
+      <div class="node cold"><b>buildImagePrompt</b><span>field concatenation</span></div>
+      <div class="arr">→</div>
+      <div class="node cold"><b>/render/image/batch</b><span>content-agents · external</span></div>
+      <div class="arr">→</div>
+      <div class="node"><b>Fabric template</b><span>text overlays</span></div>
+      <div class="arr">→</div>
+      <div class="node"><b>PostEditor</b><span>canvas editing</span></div>
+    </div>
+    <p class="flow-note">Red stages are where quality is decided, and two of them are inside <code>CONTENT_AGENTS_URL</code> — a Python service (its schemas are referenced as <span class="path">schemas/content.py</span>, <span class="path">render.py</span>) that is not in this repo. The one stage you do own, <code>buildImagePrompt</code>, is where the prompt gets degraded rather than improved.</p>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────── -->
+<section id="causes">
+  <p class="eyebrow">Root causes, ranked by effect on output</p>
+  <h2>Eight concrete differences</h2>
+  <p class="col">Each of these is verifiable in source. The first four account for most of what the client is seeing.</p>
+
+  <div class="finding">
+    <div class="fnum">01</div>
+    <div class="body">
+      <h3>Different image model, and the weaker one cannot render type</h3>
+      <p class="impact sev-1">Dominant cause</p>
+      <p>Imagen 4 is a strong scene generator but is poor at legible in-image typography and does not accept reference images at all — repo B's own code notes that content-agents only swaps to <code>gemini-2.5-flash-image</code> <em>when</em> reference images are present. Nano Banana Pro (<code>gemini-3-pro-image</code>) renders headlines, logos and wordmarks as real advertising typography, which is exactly the "looks like a finished ad" quality the client is responding to.</p>
+      <div class="ab">
+        <div class="side-a">
+          <h4>Repo A</h4>
+          <p>Default <code>gemini-3-pro-image</code>, called through <code>generateContent()</code> so references ride along as inline parts. Four selectable Nano Banana tiers exposed in Playground.</p>
+          <span class="src">backend/src/common/gemini/models.ts:41 · gemini.client.ts:675</span>
+        </div>
+        <div class="side-b">
+          <h4>Repo B</h4>
+          <p>Tier aliases map only to Imagen 4 (<code>standard/fast/ultra</code>). Config default <code>VERTEX_AI_IMAGE_MODEL=imagen-4.0-generate-001</code>. No caller in the platform path ever sets <code>model</code>, so every render is Imagen 4 unless references happen to be attached.</p>
+          <span class="src">…/asset-generation/services/vertex-ai.service.ts:6 · src/config/app.config.ts:77</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="fnum">02</div>
+    <div class="body">
+      <h3>The prompt is a serialized record, not a brief</h3>
+      <p class="impact sev-1">Dominant cause</p>
+      <p><code>buildImagePrompt()</code> joins about twenty spec fields with <code>". "</code>. Several of those fields are internal metadata that the image model reads as scene content: <code>Dimensions: 1080x1080</code>, <code>Required dimensions:</code>, <code>Image name:</code>, <code>Variant: B</code>, <code>Meta prompt used:</code>. Diffusion models do not ignore stray tokens — they render them as texture, labels, and layout noise.</p>
+      <pre><code>// repo B, what actually reaches the model
+"A bowl of ramen. Negative prompt: blurry. Style: modern.
+ Mood: warm. Dimensions: 1080x1080. Image name: ig_square_v2.
+ Color palette: #fcb514, #1a1a1a. Variant: Variant B. ..."</code></pre>
+      <div class="ab">
+        <div class="side-a">
+          <h4>Repo A</h4>
+          <p>A reasoning model first authors a structured execution JSON — <code>scenePrompt</code>, <code>negativePrompt</code>, <code>brandApplication</code>, <code>composition.safeZones</code>, <code>referencePlan</code> — against a content-type-specific system prompt with an art-director persona and craft standards. The handler then layers conditional directive blocks for headline typography, logo lockup, palette, motifs, treatment, audience ethnicity, product fidelity and size-aware layout.</p>
+          <span class="src">backend/src/common/prompts/execution-prompt/ · worker/handlers/generate-visual.handler.ts:420–1440</span>
+        </div>
+        <div class="side-b">
+          <h4>Repo B</h4>
+          <p>No authoring step on your side. Whatever content-agents returns is flattened and shipped, metadata included.</p>
+          <span class="src">…/services/asset-generation-helper.service.ts:322–398</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="fnum">03</div>
+    <div class="body">
+      <h3>Reference images are untyped, so the model treats them all as vague style hints</h3>
+      <p class="impact sev-1">Dominant cause</p>
+      <p>This is repo A's single cleverest piece of engineering. References are grouped into five roles, and <em>each group is preceded by its own instruction text</em> before its images — a "sandwich" that tells the model which pictures are ground truth and which are mood.</p>
+      <div class="ab">
+        <div class="side-a">
+          <h4>Repo A · five roles, five instructions</h4>
+          <p><code>master</code> follow ~85–90% · <code>product</code> reproduce 100% identically · <code>reference</code> follow ~60–70% for style only · <code>logo</code> reproduce exactly, case-sensitive · <code>avatar</code> reproduce the face faithfully.</p>
+          <p>Images are sent as inline base64 after a normalization pass that transcodes SVG/AVIF/GIF to PNG and drops undecodable files — an unsupported format otherwise makes Gemini reject the whole request.</p>
+          <span class="src">gemini.client.ts:92–102, 700–745 · common/gemini/reference-image-normalize.ts</span>
+        </div>
+        <div class="side-b">
+          <h4>Repo B · one flat list</h4>
+          <p><code>reference_images: string[]</code> — URLs, all from the product-photo tier, capped at 10. No role, no per-group instruction, no logo reference, no style reference, no campaign hero. No format normalization.</p>
+          <span class="src">…/services/product-reference-images.service.ts</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="fnum">04</div>
+    <div class="body">
+      <h3>Repo B has excellent brand data and never sends it to the image model</h3>
+      <p class="impact sev-1">Dominant cause</p>
+      <p>This is the most fixable finding in the report. <span class="path">altitude-brand-management-service/src/modules/brand-management/brand-dna.ts</span> defines a genuinely good canonical Brand DNA: colours as <code>{name, hex, role}</code>, typography, <code>visual.renderMode</code>, <code>visual.treatment</code>, <code>graphicMotifs</code>, logo variants and don'ts, compliance must-include/must-avoid.</p>
+      <p>In the render path, none of it is used. <code>renderImage()</code> passes only <code>brand_pack_id</code>, and the code's own comment says: <em>"Additive — content-agents ignores it until the render-time brand-lock ships."</em> <code>getBrandPack()</code> exists but its only occurrence in the content service is its own definition. The brand pack is consumed solely by the Fabric overlay builder, for text fonts and colours drawn <em>on top of</em> the image.</p>
+      <div class="ab">
+        <div class="side-a">
+          <h4>Repo A injects it directly</h4>
+          <p>Palette by name + exact hex ("treat the HEX as ground truth"), background-colour restriction to main colours only, motif vocabulary, visual treatment repeated identically across Social/Print/Kiosk so one campaign reads as one campaign, and an explicit rule against inventing split colour-field backgrounds — a named, observed failure mode.</p>
+          <span class="src">generate-visual.handler.ts:762–810 · execution-prompt/constants/brand-style-rules.ts</span>
+        </div>
+        <div class="side-b">
+          <h4>Repo B leaves it on the table</h4>
+          <p>The image model sees <code>Color palette: #fcb514, #1a1a1a</code> buried in a concatenated string, and nothing else.</p>
+          <span class="src">…/asset-generation/services/vertex-ai.service.ts · content/services/fabric-template.builder.ts</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="fnum">05</div>
+    <div class="body">
+      <h3>No resolution control — print formats render at ~1K</h3>
+      <p class="impact sev-2">Strong contributor</p>
+      <p>Repo A's size registry carries a per-format <code>minGenImageSize</code> of <code>2K</code> or <code>4K</code>, raised further when the user picks HD, and passes it as <code>imageConfig.imageSize</code>. A standee or A4 page asks for 4K natively. Repo B sends only <code>width</code>/<code>height</code>/<code>aspect_ratio</code>; there is no resolution parameter anywhere in the render path, so a print asset gets the model default and is then upscaled or simply looks soft.</p>
+      <div class="ab">
+        <div class="side-a"><h4>Repo A</h4><p><code>resolveImageSize()</code> takes the higher of the registry floor and the quality choice.</p><span class="src">common/content/content-sizes.ts · generate-visual.handler.ts:162</span></div>
+        <div class="side-b"><h4>Repo B</h4><p><code>toRenderableImageShape()</code> correctly drops un-renderable print dimensions, but nothing replaces them with a resolution request.</p><span class="src">…/services/asset-generation-platform.service.ts</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="fnum">06</div>
+    <div class="body">
+      <h3>Clean plate plus vector text reads as a template; baked type reads as an ad</h3>
+      <p class="impact sev-2">Strong contributor</p>
+      <p>Repo B's <code>render_mode: 'editable'</code> produces a deliberately text-free background and draws copy as Fabric.js objects. That is the right call for editability — and it is a real product advantage — but flat vector type sitting on a photo is precisely the "made in a tool" look. Repo A takes the opposite default: Nano Banana Pro bakes the headline as real advertising typography, matched to the weight and personality of the brand's own typeface, with the deterministic pixel compositor reserved for IAB display banners where exact pixel placement matters more than craft.</p>
+      <p>Note that repo B already hit and fixed the halfway-house bug here — overlay copy was being fed into the render prompt <em>and</em> drawn on top, producing doubled text (<span class="path">asset-generation-helper.service.ts:365</span>).</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="fnum">07</div>
+    <div class="body">
+      <h3>No campaign-level visual anchor</h3>
+      <p class="impact sev-2">Strong contributor</p>
+      <p>Repo A generates a <strong>master creative</strong> once per campaign loop, then feeds it into every subsequent format as the <code>master</code>-role reference with instructions to stay 85–90% consistent with its art direction while re-composing for the new aspect ratio. Repo B renders each platform spec independently. Its team already noticed and partly addressed the symptom — <span class="path">docs/asset-generation-render-fixes.md</span> Part 2 consolidated per-spec Content Agents calls because "a platform's video showed a completely different creative concept than its image" — but consolidating the <em>text</em> call does not give the image model a shared visual anchor.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="fnum">08</div>
+    <div class="body">
+      <h3>Blocked renders fail silently; video defaults to the cheapest tier</h3>
+      <p class="impact sev-3">Reliability, and one easy win</p>
+      <p>Gemini frequently blocks prompts containing "reproduce this branded product identically" wording with <code>blockReason: OTHER</code>. Repo A detects an empty-but-blocked response and retries once with softened IP language via <code>softenImagePromptText()</code>, behind a per-model circuit breaker and transient-retry wrapper. Repo B has no equivalent — a failed spec becomes <code>gcsUri: null</code> and the asset is quietly absent. That alone can look like "sometimes the images just aren't good".</p>
+      <p>On video: both <code>renderVideo()</code> and <code>renderVideoBatch()</code> default to <code>render_tier: 'lite'</code> — by the file's own comment the $0.40 tier, against $2.00 fast and $3.50 full. Nothing in the platform path overrides it. Repo A deliberately bumped its default from Veo 3.1 Fast to the full quality tier, with the reasoning recorded in the model map.</p>
+      <div class="ab">
+        <div class="side-a"><h4>Repo A</h4><p>Circuit breaker + transient retry + soft retry on block. Veo 3.1 quality tier, storyboard frames as first/last-frame anchors, segment plans, audio prompts, montage close.</p><span class="src">gemini.client.ts:836–860 · worker/handlers/generate-videos.handler.ts</span></div>
+        <div class="side-b"><h4>Repo B</h4><p>No retry on block. <code>render_tier ?? 'lite'</code> in both video paths. No first/last frame, no negative prompt sent for video, refs capped at 3.</p><span class="src">…/services/vertex-ai.service.ts</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────── -->
+<section id="b-wins">
+  <p class="eyebrow">The other half of the picture</p>
+  <h2>What repo B genuinely does better</h2>
+  <p class="col">The client's read is correct — B's flow is the stronger product architecture. Any plan has to preserve these, not trade them away for image quality.</p>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Capability</th><th>Repo B</th><th>Repo A</th><th style="width:40%">Note</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Service boundaries</td><td><span class="pill yes">7 services</span></td><td><span class="pill part">monolith + worker</span></td><td>B can scale and deploy content generation independently</td></tr>
+        <tr><td>Multi-tenancy</td><td><span class="pill yes">tenant_id throughout</span></td><td><span class="pill part">tenancy module</span></td><td>B enforces it at query level in every repository</td></tr>
+        <tr><td>Content versioning</td><td><span class="pill yes">item → version → variant → output</span></td><td><span class="pill part">creative asset sets</span></td><td>B has revisions, comments, compliance reports as first-class rows</td></tr>
+        <tr><td>Editable canvas</td><td><span class="pill yes">Fabric.js + version history</span></td><td><span class="pill part">image-editor module</span></td><td>B's PostEditor is a real editing surface, not a preview</td></tr>
+        <tr><td>Platform ad-spec registry</td><td><span class="pill yes">channel-driven batch</span></td><td><span class="pill part">size registry</span></td><td>B drives generation from per-channel specs</td></tr>
+        <tr><td>Batch render + failure isolation</td><td><span class="pill yes">chunked, per-item</span></td><td><span class="pill no">all-or-nothing</span></td><td>A's <code>Promise.all</code> fails the whole set on one rejection</td></tr>
+        <tr><td>Regenerate from stored prompt</td><td><span class="pill yes">with override</span></td><td><span class="pill part">re-run job</span></td><td>B stores the prompt on the asset and supersedes cleanly</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="col">So the goal is not "make B look like A". It is: <strong>keep B's flow, move A's render intelligence into it.</strong></p>
+</section>
+
+<!-- ─────────────────────────────────────────── -->
+<section id="fork">
+  <p class="eyebrow">One decision gates everything</p>
+  <h2>Do you control content-agents?</h2>
+  <p class="col">The <code>content-agents</code> service is not in either repository on this machine. It is reached only over HTTP at <code>CONTENT_AGENTS_URL</code>, with a tenant slug header. Its internals are referenced in comments as Python (<span class="path">schemas/content.py</span>, <span class="path">render.py</span>, versions "v52+", "v55+"). Everything about model choice, reference conditioning and render-time brand lock happens in there.</p>
+
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th style="width:22%">If…</th><th>Then the plan is</th><th style="width:24%">Realistic effort</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>You own content-agents</strong></td>
+          <td>Port repo A's prompt layer into content-agents' <code>/generate</code> and its reference handling into <code>/render/image</code>. Repo B changes stay small. Best outcome, cleanest architecture.</td>
+          <td>3–5 weeks, split across both codebases</td>
+        </tr>
+        <tr>
+          <td><strong>Third party, but responsive</strong></td>
+          <td>Do the repo-B-side work below, and file a small, specific list of contract changes against them: accept a full model string, accept role-tagged references, accept an <code>image_size</code>, honour <code>brand_pack_id</code>.</td>
+          <td>2 weeks yours + their turnaround</td>
+        </tr>
+        <tr>
+          <td><strong>Frozen / can't change</strong></td>
+          <td>Add a direct render path in <code>altitude-content-service</code> that calls Google GenAI itself — porting repo A's <code>GeminiClient</code> — and route image renders to it behind a feature flag, keeping content-agents for text/spec authoring.</td>
+          <td>4–6 weeks, all in repo B</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="col">The phases below are ordered so that <strong>Phase 1 and 2 are worth doing under all three branches</strong> — start there regardless.</p>
+</section>
+
+<!-- ─────────────────────────────────────────── -->
+<section id="plan">
+  <p class="eyebrow">Implementation plan · sequential, each phase shippable</p>
+  <h2>Closing the gap in repo B</h2>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="n">Phase 1</span>
+      <h3>Stop actively degrading the prompt</h3>
+      <span class="cost">~2 days · no external dependency · immediate visible effect</span>
+    </div>
+    <div class="phase-body">
+      <p>Pure repo B changes. Nothing here needs content-agents to move.</p>
+
+      <div class="step">
+        <div class="what">Strip metadata fields out of the render prompt</div>
+        <div class="where">altitude-content-service/src/modules/asset-generation/services/asset-generation-helper.service.ts:322–398</div>
+        <p class="why">Remove <code>Dimensions</code>, <code>Required dimensions</code>, <code>Image name</code>, <code>Variant</code>, <code>Meta prompt used</code> from <code>buildImagePrompt()</code>. Shape belongs in <code>aspect_ratio</code>/<code>width</code>/<code>height</code>, not in prose. Do the same audit on <code>buildVideoPrompt()</code>.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Rewrite the joiner as a sectioned brief instead of <code>". "</code></div>
+        <div class="where">same file</div>
+        <p class="why">Lead with the scene, then <code>SUBJECT / SETTING / LIGHTING / COMPOSITION / PALETTE</code> as labelled blocks on their own lines, then a single consolidated negative prompt at the end. Same data, an order the model can act on.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Raise the video tier off <code>lite</code></div>
+        <div class="where">…/services/vertex-ai.service.ts — <code>renderVideo()</code> and <code>renderVideoBatch()</code></div>
+        <p class="why">Change the default from <code>'lite'</code> to <code>'full'</code>, or expose it as config with <code>'full'</code> as the default. One line each. Ask finance first — it is a ~9× per-render cost change.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Always supply a real negative prompt</div>
+        <div class="where">…/services/asset-generation-platform.service.ts — image batch options</div>
+        <p class="why">When the spec carries none, fall back to a standing default. Port repo A's wording from <span class="path">execution-prompt/constants/brand-style-rules.ts</span> — the compositor variant covers text/logo/watermark/UI artefacts; the product-fidelity one covers wrong orientation, floating product, distorted proportions.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Surface failed renders instead of dropping them</div>
+        <div class="where">…/services/asset-generation-platform.service.ts — <code>imageStoreResults</code> / <code>videoStoreResults</code></div>
+        <p class="why">A <code>null</code> gcsUri currently logs and returns <code>null</code>. Persist a failed-output row with the error so a half-empty result set is visible in the UI rather than looking like poor model output.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="n">Phase 2</span>
+      <h3>Put the brand you already have into the image</h3>
+      <span class="cost">~1 week · no external dependency · largest single quality jump available to you</span>
+    </div>
+    <div class="phase-body">
+      <p>Brand DNA exists and is well-modelled. It just never reaches the renderer. This phase is almost entirely a wiring job.</p>
+
+      <div class="step">
+        <div class="what">Expose Brand DNA to the content service</div>
+        <div class="where">altitude-brand-management-service → altitude-content-service</div>
+        <p class="why">Either an internal endpoint returning the normalized <code>BrandDNA</code> from <span class="path">brand-dna.ts</span>, or lift that module into a shared package. Cache per <code>brand_pack_id</code> for the life of a generation job.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Add a brand-directive builder</div>
+        <div class="where">new: …/asset-generation/services/brand-directives.builder.ts</div>
+        <p class="why">Port the logic from <span class="path">generate-visual.handler.ts:762–810</span>. Emit, as separate labelled blocks: palette by <em>name plus exact hex</em> with the hex named as ground truth; background restricted to main colours; motif vocabulary from <code>graphicMotifs</code>; <code>visual.treatment</code> verbatim with an instruction to keep it identical across every format in the campaign; and an explicit prohibition on inventing split colour-field backgrounds.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Append those directives in both render paths</div>
+        <div class="where">…/services/asset-generation-platform.service.ts — batch path and <code>regenerate</code> path</div>
+        <p class="why">Both call sites, or the regenerated asset drifts off-brand relative to its own first version.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Feed the logo in as a reference image</div>
+        <div class="where">…/services/product-reference-images.service.ts</div>
+        <p class="why"><code>BrandLogoDNA.primaryUrl</code> is never sent to the renderer today. Add it to the reference list and pair it with repo A's logo instruction — including the case-sensitivity rule, which is a real observed failure (a lowercase wordmark coming back title-cased).</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Carry compliance copy through</div>
+        <div class="where">brand-directives.builder.ts</div>
+        <p class="why"><code>compliance.mustInclude</code> / <code>disclaimers</code> should reach the overlay layer as structured text, and <code>mustAvoid</code> should reach the negative prompt.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="n">Phase 3</span>
+      <h3>Role-tagged references and the right model</h3>
+      <span class="cost">~1–2 weeks · <strong>needs the content-agents decision</strong></span>
+    </div>
+    <div class="phase-body">
+      <p>This is where the fork bites. The work is the same either way; only its destination changes.</p>
+
+      <div class="step">
+        <div class="what">First, verify what content-agents already accepts</div>
+        <div class="where">docs/content-agents.postman_collection.json + a live probe</div>
+        <p class="why">Three questions, answerable in an afternoon: does <code>model</code> accept an arbitrary string such as <code>gemini-3-pro-image</code> (the code does <code>IMAGE_MODEL_TIERS[m] ?? m</code>, which suggests yes on your side — unconfirmed on theirs)? Is there an undocumented resolution field? Does it accept typed reference groups or only a flat array? <strong>The answers decide phases 3 and 4.</strong></p>
+      </div>
+
+      <div class="step">
+        <div class="what">Introduce reference roles in the content-service contract</div>
+        <div class="where">…/services/vertex-ai.service.ts — <code>RenderImageOptions</code></div>
+        <p class="why">Replace <code>referenceImages: string[]</code> with <code>Array&lt;{url, role}&gt;</code> over roles <code>master | product | reference | logo | avatar</code>. Keep the flat field as a deprecated alias so nothing breaks mid-migration.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Port the role instruction texts verbatim</div>
+        <div class="where">from backend/src/common/gemini/gemini.client.ts:92–102</div>
+        <p class="why">These are tuned strings with specific percentages ("follow ~60–70% for style only", "reproduce 100% identically"). Copy them; do not paraphrase. The food-plating clause in the <code>product</code> role in particular encodes a hard-won fix about serving vessels and piece counts.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Build the sandwich and switch model</div>
+        <div class="where">content-agents render.py — or a new direct-render service in repo B</div>
+        <p class="why">Parts order is: role label → that role's images → next role → … → <code>GENERATION TASK:</code> + prompt + the combined how-to-apply paragraph. Render via <code>generateContent()</code> on <code>gemini-3-pro-image</code> with <code>responseModalities: ['IMAGE']</code>. Also port <code>reference-image-normalize.ts</code> — without the SVG/AVIF transcode, one bad brand asset kills the whole request.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Add <code>image_size</code> and a per-format floor</div>
+        <div class="where">…/services/vertex-ai.service.ts + a size registry in repo B</div>
+        <p class="why">Port <code>minGenImageSize</code> and <code>resolveImageSize()</code> from <span class="path">common/content/content-sizes.ts</span> and map your channel/ad-spec rows onto it. Print and large-format go to 4K, digital banners stay at default.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Add the block-and-soften retry</div>
+        <div class="where">wherever the model call ends up living</div>
+        <p class="why">Port <code>softenImagePromptText()</code> and the empty-response-with-block-reason detection. Repo A's comment says this recovers "a large fraction" of otherwise-failed branded social renders.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="n">Phase 4</span>
+      <h3>Authored scenes and a campaign anchor</h3>
+      <span class="cost">~2–3 weeks · the step that makes output feel art-directed</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="what">Add an execution-prompt derivation step</div>
+        <div class="where">new stage between content-agents <code>/generate</code> and render</div>
+        <p class="why">Port <span class="path">backend/src/common/prompts/execution-prompt/</span> wholesale — it is ~1,700 lines and self-contained. Run a reasoning model over brief + brand DNA + channel spec to produce the structured execution JSON, then render from <code>prompt.scenePrompt</code>. This replaces "concatenate the spec" with "author a scene", and gives you per-content-type personas rather than one generic voice.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Generate a master creative per campaign</div>
+        <div class="where">new: a hero-render step before per-platform generation</div>
+        <p class="why">Port <span class="path">worker/handlers/generate-master-creative.handler.ts</span>. Render one hero image, store it, then pass it into every platform render as the <code>master</code>-role reference. This is what makes a campaign's Instagram post, print ad and kiosk read as one campaign — and it is the fix for the concept-drift symptom your own render-fixes doc describes.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Offer baked typography as a render mode</div>
+        <div class="where">…/services/asset-generation-platform.service.ts + PostEditor</div>
+        <p class="why">Keep <code>editable</code> as the default so you keep the canvas advantage, but add a <code>baked</code> mode that renders headline and logo into the image the way repo A does, for formats where finished-ad polish matters more than editability. Let the user switch and re-render — the regenerate path already exists.</p>
+      </div>
+
+      <div class="step">
+        <div class="what">Bring the video path up to match</div>
+        <div class="where">…/services/vertex-ai.service.ts + a new storyboard step</div>
+        <p class="why">Port first/last-frame anchoring from <span class="path">worker/handlers/storyboard-frames.handler.ts</span> and the segment planner from <span class="path">common/prompts/video-segment-plan.ts</span>. Send a negative prompt for video — repo B currently sends none. Reference-conditioned, frame-anchored Veo is a step change over prompt-only.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="n">Phase 5</span>
+      <h3>Prove it, then keep it proven</h3>
+      <span class="cost">~1 week, then ongoing</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="what">Build a fixed evaluation set before Phase 1 lands</div>
+        <div class="where">new: a seeded script + a small gallery page</div>
+        <p class="why">Pick 3 brands × 5 formats × 3 variants. Render the same set after every phase and put old and new side by side. Without this you are relying on "the client says it looks better", which is not a signal you can regress against.</p>
+      </div>
+      <div class="step">
+        <div class="what">Log the full final prompt on every asset</div>
+        <div class="where">digital_asset.metadata</div>
+        <p class="why">The regenerate path already stores <code>meta.prompt</code>. Store the complete composed string including brand directives and reference roles, so a bad image can be diagnosed from the row instead of reproduced by guesswork.</p>
+      </div>
+      <div class="step">
+        <div class="what">Pin model IDs and fail fast on drift</div>
+        <div class="where">config + boot check</div>
+        <p class="why">Port repo A's boot-time model validator. Preview model IDs get deprecated; a silent 404 in production reads as "the AI got worse this week".</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────── -->
+<section id="questions">
+  <p class="eyebrow">What I need from you</p>
+  <h2>Five questions, in priority order</h2>
+  <p class="col">Phases 1 and 2 can start before any of these are answered. Phase 3 onward cannot.</p>
+
+  <div class="q">
+    <h3>1 · Who owns content-agents?</h3>
+    <p>Your team, another team in the client's org, or a vendor? Can you get me the repo, or at least its OpenAPI spec?</p>
+    <p class="why-asking">This is the fork in the plan. It changes where roughly 60% of the work lands and swings the estimate between 2 and 6 weeks.</p>
+  </div>
+
+  <div class="q">
+    <h3>2 · Is repo A the target, or a reference?</h3>
+    <p>Are we improving repo B to ship, with repo A as the quality benchmark? Or is the long-term plan to merge them?</p>
+    <p class="why-asking">If they merge, I would sequence this very differently — port B's versioning and editor into A rather than porting A's renderer into B.</p>
+  </div>
+
+  <div class="q">
+    <h3>3 · What is the cost ceiling per asset?</h3>
+    <p>Nano Banana Pro at 4K costs materially more than Imagen 4 at 1K, and Veo <code>full</code> is roughly 9× <code>lite</code>. Repo A's model map states its position plainly: "Quality trumps cost for content generation."</p>
+    <p class="why-asking">If there is a hard per-asset budget, I would keep Nano Banana Pro for hero and print formats and use a cheaper tier for high-volume social — a split repo A already supports through its four selectable tiers.</p>
+  </div>
+
+  <div class="q">
+    <h3>4 · Do you have paired examples?</h3>
+    <p>Ten or so cases where the same brand and brief produced a good image in A and a poor one in B — ideally with both prompts.</p>
+    <p class="why-asking">The eight causes above are derived from source. Paired examples would let me rank them by <em>your</em> actual failures rather than by my reading, and would seed the Phase 5 evaluation set.</p>
+  </div>
+
+  <div class="q">
+    <h3>5 · Does the editable canvas have to stay the default?</h3>
+    <p>Fabric overlays and baked typography pull in opposite directions. Repo A's output looks finished partly <em>because</em> the type is in the pixels.</p>
+    <p class="why-asking">If editability is non-negotiable for every asset, Phase 4's typography step becomes opt-in and the ceiling on "looks like a real ad" is a bit lower. Worth deciding deliberately rather than by default.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Prepared from source inspection of AltitudeX-MAIN-SANDBOX (backend/, worker/, frontend/) and altitude (Altitude-backend-main/*, Altitude-Frontend-main/). No services were run and no generated assets were compared — findings are code-derived and the ranking in §Root causes is an engineering judgement, not a measurement. The content-agents service was not available for inspection; every statement about its behaviour is drawn from repo B's own client code and comments and is marked as such.</p>
+</footer>
+
+</div>
+
+</body>
+</html>
